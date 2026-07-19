@@ -1270,7 +1270,7 @@ async def get_model_lists_endpoint(request):
         clip_types = [
             "stable_diffusion", "stable_cascade", "sd3", "stable_audio",
             "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan",
-            "hidream", "chroma", "ace", "flux", "flux2"
+            "hidream", "chroma", "ace", "flux", "flux2", "krea2"
         ]
         dual_clip_types = [
             "sdxl", "sd3", "flux", "flux2", "hunyuan_video", "hidream",
