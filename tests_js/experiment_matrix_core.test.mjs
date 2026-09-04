@@ -4,7 +4,7 @@ import {
   parseSeedList,
   estimateMatrixImages,
   buildMatrixConfigArrays,
-} from "../web/experiment_matrix_core.js";
+} from "../web/conf_builder/experiment_matrix_core.js";
 
 assert.deepEqual(
   buildStrengthValues(1.10, 1.30, 0.05),
