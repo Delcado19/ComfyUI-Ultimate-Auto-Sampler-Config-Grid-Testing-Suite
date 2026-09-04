@@ -1,0 +1,49 @@
+name: Experiment Matrix Tests
+
+on:
+  push:
+    branches:
+      - feature/experiment-matrix-v1
+  pull_request:
+    paths:
+      - 'web/conf_builder/experiment_matrix*.js'
+      - 'tests_js/experiment_matrix_core.test.mjs'
+      - 'tests/test_experiment_matrix_contract.py'
+      - 'config_builder_node.py'
+
+jobs:
+  matrix-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check web/conf_builder/experiment_matrix_core.js
+          node --check web/conf_builder/experiment_matrix.js
+
+      - name: Matrix core tests
+        run: node tests_js/experiment_matrix_core.test.mjs
+
+  builder-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pytest numpy pillow
+
+      - name: Builder matrix contract test
+        run: python -m pytest -q tests/test_experiment_matrix_contract.py
