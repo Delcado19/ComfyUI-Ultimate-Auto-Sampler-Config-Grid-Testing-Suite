@@ -1625,7 +1625,8 @@ After modifying backend Python files, restart ComfyUI. After modifying `web/` JS
 
 ## 📜 License
 
-MIT License. Feel free to use, modify, and distribute.
+Licensed under the [MIT License](LICENSE). Copyright and license notices must
+be retained when distributing copies or substantial portions of the software.
 
 ---
 

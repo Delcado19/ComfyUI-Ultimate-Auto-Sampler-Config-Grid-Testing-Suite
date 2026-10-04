@@ -34,7 +34,9 @@ Implemented after the local architecture review:
 - Official checkout/setup actions were updated after the first hosted run
   reported their deprecated Node 20 runtime. Application syntax checks continue
   to use Node 22; the action runner runtime is configured by those actions.
-- Live ComfyUI/browser/GPU verification has not been performed.
+- A live SDXL generation/dashboard smoke test passed on ComfyUI 0.38.0 and
+  RTX 5080, including annotation resets and session reuse after restart.
+  See `RUNTIME_TEST_STATUS.md` for evidence, the UTF-8 report fix and limits.
 - Graphify was rebuilt (1,509 nodes, 2,875 edges, 81 communities). After renewed
   user approval, Gemini labeling completed for all 81 communities, with no
   placeholder labels. Configured batch size: 1,000; concurrency: 1; SDK retries: 0.
@@ -58,8 +60,9 @@ python -m compileall -q -l . tests
   share session files.
 - Cleanup during generation is not job cancellation and does not invalidate
   the generator's retained item list. This pre-existing behavior is documented.
-- The referenced LICENSE file remains absent. Do not invent copyright terms;
-  obtain maintainer confirmation before creating the legal document.
+- The root MIT `LICENSE` was added at the user's explicit request, matching the
+  existing README declaration and package metadata. Copyright credits Jason Hoku
+  and contributors; distribution must preserve copyright and license notices.
 - Publication scope: source fixes, regression tests, CI, documentation and the
   current labeled Graphify artifacts. Temporary tools, caches and graph backups
   are ignored. No release, installation change or third-party message is included.

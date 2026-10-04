@@ -176,4 +176,6 @@ The maintainer (Jason Hoku) actively monitors both.
 
 ## License
 
-This project is open source. The license is declared in `pyproject.toml` (`license = {file = "LICENSE"}`). A `LICENSE` file is referenced there but not yet present in the repo root — check the GitHub repository page for the current license terms.
+This project is licensed under the [MIT License](LICENSE), matching the
+`license = {file = "LICENSE"}` declaration in `pyproject.toml`. Retain the
+copyright and license notices when redistributing the software.

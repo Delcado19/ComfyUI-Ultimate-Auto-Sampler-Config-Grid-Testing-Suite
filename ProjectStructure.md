@@ -119,5 +119,5 @@ Live ComfyUI/browser/GPU tests remain necessary for runtime changes.
 Synchronization is process-local; independent ComfyUI processes must not write
 the same session files. Cleanup during active generation is not a transactional
 job cancellation: a retained generation snapshot may reintroduce deleted entries.
-The package references a missing `LICENSE` file. Do not invent copyright terms;
-maintainer confirmation is required before adding the legal document.
+The package references the root [MIT LICENSE](LICENSE), consistent with the
+README and package metadata. Preserve copyright and license notices on redistribution.
