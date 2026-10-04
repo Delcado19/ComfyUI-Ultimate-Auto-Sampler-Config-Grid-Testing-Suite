@@ -52,6 +52,7 @@ import torch
 import nodes
 import numpy as np
 from PIL import Image
+from .manifest_utils import save_manifest
 
 
 # NOTE: torch.inference_mode() decorator — see module docstring above for why
@@ -978,39 +979,11 @@ def flush_batch_with_vae(pending_batch, vae, img_dir, existing_data, session_nam
         # Update manifest - insert at beginning (like remote_vae)
         existing_data["items"].insert(0, meta)
         
-        # Sync with disk manifest to preserve tags (like remote_vae) - only if manifest_path provided
-        if manifest_path and os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r") as f:
-                    disk_manifest = json.load(f)
-                
-                # Create a lookup map for items currently in memory
-                memory_items_map = {
-                    i.get("id"): i 
-                    for i in existing_data.get("items", []) 
-                    if "id" in i
-                }
-
-                # Check every item on disk. If it exists in memory, copy the tags over.
-                for disk_item in disk_manifest.get("items", []):
-                    d_id = disk_item.get("id")
-                    if d_id and d_id in memory_items_map:
-                        local_item = memory_items_map[d_id]
-                        
-                        # PRESERVE TAGS: Copy these keys from disk to memory
-                        if "favorited" in disk_item:
-                            local_item["favorited"] = disk_item["favorited"]
-                        if "rejected" in disk_item:
-                            local_item["rejected"] = disk_item["rejected"]
-
-            except Exception as e:
-                print(f"[GridTester] ⚠️ Error syncing with disk manifest: {e}")
-
-        # Save manifest to disk (like remote_vae) - only if manifest_path provided
+        # Merge user actions and atomically publish under the shared writer lock.
+        # Direct writes here previously raced dashboard edits and upscale saves.
         if manifest_path:
-            with open(manifest_path, "w") as f:
-                json.dump(existing_data, f, indent=4)
-        
+            save_manifest(manifest_path, existing_data)
+
         # Send update to dashboard (like remote_vae) - only if unique_id provided
         if unique_id:
             try:

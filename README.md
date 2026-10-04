@@ -1523,6 +1523,15 @@ After modifying backend Python files, restart ComfyUI. After modifying `web/` JS
 
 ## 📝 Changelog
 
+### Unreleased - Dashboard and Session Reliability
+
+- Escape embedded manifest JSON, node IDs, and session titles while preserving incremental dashboard updates.
+- Preserve removed favorites, cleared rejections, and empty notes when generation saves a stale manifest.
+- Serialize generation, dashboard edits, cleanup, and scan manifest writes with a shared process-local lock and atomic replacement. Failed writes leave the previous manifest intact.
+- Preserve other writers' new results in generation snapshots. Independent ComfyUI processes must not share session files.
+- Run Python tests and JavaScript syntax checks on Windows and Linux before registry publication.
+
+
 ### Update 3/9/26 — Upscaling, Workflow Packing & Config Builder Enhancements
 * 🔍 **Array-Based Upscaling System:** Define multiple upscale configs with Cartesian expansion across models, ratios, and denoise values. Five modes: hires_only, model_only, model_then_hires, seedvr2, and florence2_hires (targeted region inpaint via Florence2 segmentation — needs ComfyUI-Florence2).
 * 🖼️ **Upscale Model Discovery:** Auto-detects installed upscale models (RealESRGAN, etc.) from ComfyUI's folder system with searchable dropdown.

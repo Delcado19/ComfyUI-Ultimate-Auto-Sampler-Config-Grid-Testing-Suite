@@ -86,7 +86,6 @@ def _install_stubs():
     _subs = {
         "sampler_node": {"SamplerGridTester": type("SamplerGridTester", (), {})},
         "dashboard_node": {"SamplerConfigDashboardViewer": type("SamplerConfigDashboardViewer", (), {})},
-        "html_generator": {"get_html_template": lambda *a, **kw: ""},
         "json_text_node": {"SmartJSONTextNode": type("SmartJSONTextNode", (), {})},
         "metadata_packer": {"pack_metadata_into_image": lambda *a, **kw: None},
         "directory_scanner": {
@@ -123,8 +122,13 @@ def _install_stubs():
     if _NODE_ROOT not in sys.path:
         sys.path.insert(0, _NODE_ROOT)
 
+    # Test real stdlib-only storage/HTML helpers and share the same writer lock
+    # between their bare imports and the package routes under test.
+    for bare in ("manifest_utils", "html_generator"):
+        sys.modules[f"{_PKG_NAME}.{bare}"] = importlib.import_module(bare)
+
     # 5. Load the real config_builder_node module (with package context so that
-    #    relative imports like `from .network_utils import ...` resolve correctly).
+    #    relative imports of the companion facades resolve correctly).
     #    This must happen after all stubs are registered (steps 1-4) so that the
     #    module-level decorator calls (server.PromptServer.instance.routes.post/get)
     #    and relative imports in config_builder_node.py succeed.

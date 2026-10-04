@@ -14,6 +14,7 @@ from .config_builder_node import UltimateConfigBuilder
 from .json_text_node import SmartJSONTextNode
 from .metadata_packer import pack_metadata_into_image
 from .directory_scanner import scan_directory_for_images
+from .manifest_utils import manifest_transaction
 import sys
 
 # Register a sys.modules alias for cross-companion imports.
@@ -380,25 +381,23 @@ async def save_changes(request):
         if not os.path.exists(manifest_path):
             return web.Response(status=404, text=f"Session '{session_name}' not found")
 
-        with open(manifest_path, "r") as f:
-            manifest = json.load(f)
+        # Serialize API changes with generation and upscale saves.
+        with manifest_transaction(manifest_path) as manifest:
 
-        # Create lookup of changed items by ID
-        changed_by_id = {item.get("id"): item for item in changed_items if "id" in item}
+            # Create lookup of changed items by ID
+            changed_by_id = {item.get("id"): item for item in changed_items if "id" in item}
         
-        # Update items in manifest
-        items_updated = 0
-        for i, item in enumerate(manifest.get("items", [])):
-            item_id = item.get("id")
-            if item_id in changed_by_id:
-                # Merge changes (preserve fields not sent by client)
-                updated_item = changed_by_id[item_id]
-                manifest["items"][i].update(updated_item)
-                items_updated += 1
+            # Update items in manifest
+            items_updated = 0
+            for i, item in enumerate(manifest.get("items", [])):
+                item_id = item.get("id")
+                if item_id in changed_by_id:
+                    # Merge changes (preserve fields not sent by client)
+                    updated_item = changed_by_id[item_id]
+                    manifest["items"][i].update(updated_item)
+                    items_updated += 1
         
-        # Save updated manifest
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=4)
+            # Save updated manifest
         
         print(f"[ConfigTester] ⚡ Updated {items_updated} items in {session_name}")
         return web.Response(status=200, text=f"Updated {items_updated} items")
@@ -440,48 +439,15 @@ async def save_manifest(request):
 
         manifest_path = os.path.join(base_dir, "manifest.json")
 
-        # --- MERGE STRATEGY: Preserve server data ---
-        # 1. Load server manifest (has newest images)
-        server_manifest = None
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r") as f:
-                    server_manifest = json.load(f)
-            except:
-                pass
-
-        if server_manifest:
-            # Build lookup of items by ID from dashboard
+        with manifest_transaction(manifest_path, initial_data=manifest_data) as server_manifest:
+            # Preserve server data while applying dashboard user actions.
             dashboard_items = {item.get("id"): item for item in manifest_data.get("items", [])}
-            
-            # Merge: Update existing items, keep new items
-            merged_items = []
             for server_item in server_manifest.get("items", []):
-                item_id = server_item.get("id")
-                if item_id in dashboard_items:
-                    # Item exists in dashboard: merge updates
-                    dashboard_item = dashboard_items[item_id]
-                    # Preserve server's metadata but update user actions
-                    merged_item = server_item.copy()
-                    merged_item["favorited"] = dashboard_item.get("favorited", False)
-                    merged_item["rejected"] = dashboard_item.get("rejected", False)
-                    merged_item["note"] = dashboard_item.get("note", "")
-                    merged_items.append(merged_item)
-                else:
-                    # NEW item from server (generation added it): keep as-is
-                    merged_items.append(server_item)
-            
-            # Update manifest
-            manifest_data["items"] = merged_items
-            
-            # Preserve server's meta
-            if "meta" in server_manifest:
-                manifest_data["meta"] = server_manifest["meta"]
-
-        # Save merged manifest
-        os.makedirs(base_dir, exist_ok=True)
-        with open(manifest_path, "w") as f:
-            json.dump(manifest_data, f, indent=4)
+                dashboard_item = dashboard_items.get(server_item.get("id"))
+                if dashboard_item is not None:
+                    for field in ("favorited", "rejected", "note"):
+                        if field in dashboard_item:
+                            server_item[field] = dashboard_item[field]
 
         return web.Response(status=200, text="Saved")
 
@@ -799,46 +765,44 @@ async def delete_non_favorites(request):
         if not os.path.exists(manifest_path):
             return web.Response(status=404, text=f"Session '{session_name}' not found")
 
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            manifest = json.load(f)
+        # Serialize API changes with generation and upscale saves.
+        with manifest_transaction(manifest_path) as manifest:
 
-        items = manifest.get("items", [])
-        favorited = [item for item in items if item.get("favorited", False)]
-        non_favorited = [item for item in items if not item.get("favorited", False)]
+            items = manifest.get("items", [])
+            favorited = [item for item in items if item.get("favorited", False)]
+            non_favorited = [item for item in items if not item.get("favorited", False)]
 
-        if not non_favorited:
-            return web.Response(status=200, text="No non-favorited items to delete")
+            if not non_favorited:
+                return web.Response(status=200, text="No non-favorited items to delete")
 
-        # Delete non-favorited image files
-        deleted_count = 0
-        for item in non_favorited:
-            file_path = item.get("file", "")
+            # Delete non-favorited image files
+            deleted_count = 0
+            for item in non_favorited:
+                file_path = item.get("file", "")
 
-            # Parse filename from various formats
-            if file_path.startswith("/view?"):
-                parsed_url = urllib.parse.urlparse(file_path)
-                url_params = urllib.parse.parse_qs(parsed_url.query)
-                filename = url_params.get("filename", [""])[0]
-            elif file_path.startswith("./images/"):
-                filename = file_path[9:]
-            elif "filename=" in file_path:
-                filename = file_path.split("filename=")[-1].split("&")[0]
-            else:
-                filename = os.path.basename(file_path)
+                # Parse filename from various formats
+                if file_path.startswith("/view?"):
+                    parsed_url = urllib.parse.urlparse(file_path)
+                    url_params = urllib.parse.parse_qs(parsed_url.query)
+                    filename = url_params.get("filename", [""])[0]
+                elif file_path.startswith("./images/"):
+                    filename = file_path[9:]
+                elif "filename=" in file_path:
+                    filename = file_path.split("filename=")[-1].split("&")[0]
+                else:
+                    filename = os.path.basename(file_path)
 
-            if filename:
-                image_path = os.path.join(images_dir, filename)
-                if os.path.exists(image_path):
-                    try:
-                        os.remove(image_path)
-                        deleted_count += 1
-                    except Exception as e:
-                        print(f"[Delete] Error deleting {filename}: {e}")
+                if filename:
+                    image_path = os.path.join(images_dir, filename)
+                    if os.path.exists(image_path):
+                        try:
+                            os.remove(image_path)
+                            deleted_count += 1
+                        except Exception as e:
+                            print(f"[Delete] Error deleting {filename}: {e}")
 
-        # Update manifest to only contain favorited items
-        manifest["items"] = favorited
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
+            # Update manifest to only contain favorited items
+            manifest["items"] = favorited
 
         result_msg = f"Deleted {deleted_count} non-favorited images. {len(favorited)} favorited items remain."
         print(f"[ConfigTester] 🗑️ {result_msg}")
@@ -883,46 +847,44 @@ async def delete_rejected(request):
         if not os.path.exists(manifest_path):
             return web.Response(status=404, text=f"Session '{session_name}' not found")
 
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            manifest = json.load(f)
+        # Serialize API changes with generation and upscale saves.
+        with manifest_transaction(manifest_path) as manifest:
 
-        items = manifest.get("items", [])
-        rejected = [item for item in items if item.get("rejected", False)]
-        kept = [item for item in items if not item.get("rejected", False)]
+            items = manifest.get("items", [])
+            rejected = [item for item in items if item.get("rejected", False)]
+            kept = [item for item in items if not item.get("rejected", False)]
 
-        if not rejected:
-            return web.Response(status=200, text="No rejected items to delete")
+            if not rejected:
+                return web.Response(status=200, text="No rejected items to delete")
 
-        # Delete rejected image files
-        deleted_count = 0
-        for item in rejected:
-            file_path = item.get("file", "")
+            # Delete rejected image files
+            deleted_count = 0
+            for item in rejected:
+                file_path = item.get("file", "")
 
-            # Parse filename from various formats
-            if file_path.startswith("/view?"):
-                parsed_url = urllib.parse.urlparse(file_path)
-                url_params = urllib.parse.parse_qs(parsed_url.query)
-                filename = url_params.get("filename", [""])[0]
-            elif file_path.startswith("./images/"):
-                filename = file_path[9:]
-            elif "filename=" in file_path:
-                filename = file_path.split("filename=")[-1].split("&")[0]
-            else:
-                filename = os.path.basename(file_path)
+                # Parse filename from various formats
+                if file_path.startswith("/view?"):
+                    parsed_url = urllib.parse.urlparse(file_path)
+                    url_params = urllib.parse.parse_qs(parsed_url.query)
+                    filename = url_params.get("filename", [""])[0]
+                elif file_path.startswith("./images/"):
+                    filename = file_path[9:]
+                elif "filename=" in file_path:
+                    filename = file_path.split("filename=")[-1].split("&")[0]
+                else:
+                    filename = os.path.basename(file_path)
 
-            if filename:
-                image_path = os.path.join(images_dir, filename)
-                if os.path.exists(image_path):
-                    try:
-                        os.remove(image_path)
-                        deleted_count += 1
-                    except Exception as e:
-                        print(f"[Delete] Error deleting {filename}: {e}")
+                if filename:
+                    image_path = os.path.join(images_dir, filename)
+                    if os.path.exists(image_path):
+                        try:
+                            os.remove(image_path)
+                            deleted_count += 1
+                        except Exception as e:
+                            print(f"[Delete] Error deleting {filename}: {e}")
 
-        # Update manifest to remove rejected items
-        manifest["items"] = kept
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
+            # Update manifest to remove rejected items
+            manifest["items"] = kept
 
         result_msg = f"Deleted {deleted_count} rejected images. {len(kept)} items remain."
         print(f"[ConfigTester] 🗑️ {result_msg}")
@@ -1018,31 +980,17 @@ async def scan_directory_route(request):
         # Save manifest to benchmarks session directory
         manifest_path = os.path.join(base_dir, "manifest.json")
 
-        # If manifest already exists, preserve user tags (favorited/rejected/notes)
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r") as f:
-                    old_manifest = json.load(f)
-                # Build lookup of old items by source_file for tag preservation
-                old_by_source = {}
-                for old_item in old_manifest.get("items", []):
-                    src = old_item.get("source_file")
-                    if src:
-                        old_by_source[src] = old_item
-                # Merge user tags into new items
-                for item in items:
-                    src = item.get("source_file")
-                    if src and src in old_by_source:
-                        old = old_by_source[src]
-                        item["favorited"] = old.get("favorited", False)
-                        item["rejected"] = old.get("rejected", False)
-                        if old.get("notes"):
-                            item["notes"] = old["notes"]
-            except Exception as e:
-                print(f"[DirScanner] Warning: Could not merge old tags: {e}")
-
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=2)
+        # Re-scans replace the item list but retain current annotations by source.
+        with manifest_transaction(manifest_path, initial_data={"items": []}) as current:
+            old_by_source = {item.get("source_file"): item
+                             for item in current.get("items", []) if item.get("source_file")}
+            for item in items:
+                old = old_by_source.get(item.get("source_file"), {})
+                for field in ("favorited", "rejected", "note", "notes"):
+                    if field in old:
+                        item[field] = old[field]
+            current.clear()
+            current.update(manifest)
 
         print(f"[DirScanner] Created image links in: {link_dir}")
 

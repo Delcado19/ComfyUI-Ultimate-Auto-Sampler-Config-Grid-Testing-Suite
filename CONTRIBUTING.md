@@ -47,11 +47,28 @@ pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
-There are currently 46 tests covering:
+Standalone tests require `pytest`, `numpy`, `Pillow`, and real PyTorch (CPU is
+enough). Install them in a development environment, not at node runtime:
+
+```bash
+python -m pip install pytest numpy pillow
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Tests cover:
 - LTX video config expansion and cache key logic
 - Sigma parser
 - Config expansion (Cartesian products)
 - `state_to_configs_json` transformer
+- Florence2 cropping, model loading, and no-detection behavior
+- Optional companion plugin facades
+- Safe dashboard HTML serialization and concurrent, atomic manifest updates
+
+The `Tests` workflow runs on Linux and Windows. Registry publication depends on
+the same workflow succeeding. These standalone tests stub ComfyUI integration;
+they do not replace a live ComfyUI/browser smoke test.
+The workflow can also be started manually from Actions. Each operating system
+finishes independently if the other fails, with a 20-minute timeout per job.
 
 PRs that change Python logic should add tests where it's reasonable to do so.
 
@@ -104,6 +121,18 @@ When adding a new state field that should appear in `configs_json`:
 - `id` — timestamp-based integer: `int(time.time() * 100000) + random.randint(0, 1000)`
 
 **Manifest items are inserted at index 0** (newest-first order).
+
+**Manifest writes:** Use `manifest_utils.save_manifest` for generation snapshots,
+or `manifest_transaction` for API read/modify/write operations. Both share a
+process-local lock and atomically replace complete UTF-8 JSON files. User fields
+must be merged by key presence, including `False` and empty notes. A damaged
+existing manifest raises instead of being silently overwritten. Do not nest these
+helpers or hold a transaction across an `await`. Separate ComfyUI processes must
+not write the same session files.
+
+**Dashboard HTML:** Manifest JSON and node IDs are embedded as safe JavaScript
+literals; titles are escaped for HTML attributes. Preserve the JSON markers used
+by `web/dashboard.js` for incremental updates and substitute template tokens once.
 
 **ComfyUI V3 vs V1 nodes:** Use the `_call_node` and `_unwrap` helpers when calling V3 nodes outside the executor pipeline. See `ltx_video_generation.py` for the established pattern.
 

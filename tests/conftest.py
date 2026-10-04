@@ -101,10 +101,6 @@ _GEN_ORCH_DEPS = {
         "batch_encode_prompts": lambda *a, **kw: None,
         "encode_prompt_with_combinators": lambda *a, **kw: None,
     },
-    "manifest_utils": {
-        "load_existing_manifest": lambda *a, **kw: {},
-        "save_manifest": lambda *a, **kw: None,
-    },
     "model_loader": {
         "load_checkpoint": lambda *a, **kw: None,
         "load_loras": lambda *a, **kw: None,
@@ -126,9 +122,6 @@ _GEN_ORCH_DEPS = {
         "decode_latent_with_vae": lambda *a, **kw: None,
         "calculate_eta": lambda *a, **kw: 0.0,
         "print_generation_progress": lambda *a, **kw: None,
-    },
-    "html_generator": {
-        "get_html_template": lambda *a, **kw: "",
     },
     "conditioning_cache": {
         "ConditioningCache": type("ConditioningCache", (), {}),

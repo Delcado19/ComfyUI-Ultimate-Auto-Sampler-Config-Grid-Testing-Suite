@@ -9,10 +9,14 @@ on:
       - "pyproject.toml"
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
   publish-node:
+    needs: tests
     name: Publish Custom Node to registry
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'JasonHoku' }}

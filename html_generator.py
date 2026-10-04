@@ -1,5 +1,7 @@
 import os
 import json
+import html
+import re
 
 def get_html_template(title, manifest_data, node_id):
     # 1. Normalize Data
@@ -7,7 +9,9 @@ def get_html_template(title, manifest_data, node_id):
         manifest_data = {"items": manifest_data, "meta": {"model": "", "positive": "", "negative": ""}}
     
     # Indent JSON for readability
-    json_str = json.dumps(manifest_data, indent=2)
+    # HTML parses </script> even inside a JS string. Escape '<' while keeping
+    # valid JSON so the dashboard's incremental-update parser still works.
+    json_str = json.dumps(manifest_data, indent=2).replace("<", "\\u003c")
 
     # 2. Resolve File Paths
     current_dir = os.path.dirname(__file__)
@@ -49,11 +53,17 @@ def get_html_template(title, manifest_data, node_id):
     wrapped_json = f"/*__JSON_START__*/\nlet fullManifest = {json_str};\n/*__JSON_END__*/"
 
     # 4. Final Replacements
-    final_html = html_template \
-        .replace("__TITLE__", str(title)) \
-        .replace("__NODE_ID__", str(node_id)) \
-        .replace("let fullManifest = __JSON_DATA__;", wrapped_json) \
-        .replace("__CSS_CONTENT__", css_content) \
-        .replace("__JS_CONTENT__", js_content)
+    # Substitute once: user text containing template tokens must stay literal.
+    replacements = {
+        "__TITLE__": html.escape(str(title), quote=True),
+        '"__NODE_ID__"': json.dumps(str(node_id)).replace("<", "\\u003c"),
+        "let fullManifest = __JSON_DATA__;": wrapped_json,
+        "__CSS_CONTENT__": css_content,
+        "__JS_CONTENT__": js_content,
+    }
+    final_html = re.sub(
+        "|".join(re.escape(token) for token in replacements),
+        lambda match: replacements[match.group(0)], html_template,
+    )
 
     return final_html
