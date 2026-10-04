@@ -31,6 +31,9 @@ Implemented after the local architecture review:
   calls, with independent Windows/Linux jobs and a 20-minute job timeout.
 - Hosted results are available under the repository's Actions tab; registry
   publishing requires the reusable test workflow to succeed.
+- Official checkout/setup actions were updated after the first hosted run
+  reported their deprecated Node 20 runtime. Application syntax checks continue
+  to use Node 22; the action runner runtime is configured by those actions.
 - Live ComfyUI/browser/GPU verification has not been performed.
 - Graphify was rebuilt (1,509 nodes, 2,875 edges, 81 communities). After renewed
   user approval, Gemini labeling completed for all 81 communities, with no
