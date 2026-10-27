@@ -5,7 +5,44 @@ the preview endpoint (/configbuilder/preview) call. Drift between preview
 and runtime is impossible by construction because both call this function.
 """
 import json
+import copy
+import pytest
 from config_builder_node import UltimateConfigBuilder
+
+
+def test_shared_seed_list_expands_each_comparison_and_preserves_uint64_and_zero():
+    state = make_state(extra_array_fields={"full_run_seed": 42, "seed_behavior": "randomize", "full_run_seed_behavior": "increment_after"})
+    state["config_arrays"].append(dict(state["config_arrays"][0], name="Second", cfg="1.0"))
+    state["seed_values"] = "0, 18446744073709551615, 0"
+    before = copy.deepcopy(state)
+    result = json.loads(UltimateConfigBuilder.state_to_configs_json(state))
+    assert [c["seed"] for c in result["configs"]] == [0, 2**64 - 1, 0, 2**64 - 1]
+    assert all(c["full_run_seed"] == c["seed"] for c in result["configs"])
+    assert all(c["seed_behavior"] == c["full_run_seed_behavior"] == "fixed" for c in result["configs"])
+    assert result["_session_settings"]["seed_values"] == "0, 18446744073709551615"
+    assert state == before
+
+
+def test_empty_shared_seed_list_keeps_legacy_per_comparison_seed():
+    state = make_state(extra_array_fields={"full_run_seed": 42})
+    legacy = UltimateConfigBuilder.state_to_configs_json(state)
+    state["seed_values"] = " "
+    assert UltimateConfigBuilder.state_to_configs_json(state) == legacy
+
+
+@pytest.mark.parametrize("seeds", ["1,,2", ",1", "1,", "1;2", "1 2", "-1", "1.5", "1e3", "18446744073709551616", [1, 2], True])
+def test_shared_seed_list_rejects_invalid_values_at_execution_boundary(seeds):
+    state = make_state()
+    state["seed_values"] = seeds
+    with pytest.raises(ValueError):
+        UltimateConfigBuilder.state_to_configs_json(state)
+
+
+@pytest.mark.parametrize("weights", [[""], [None], [True], [float("nan")], [float("inf")], ["0.5,,1.0"], "0.5,1.0"])
+def test_strength_list_rejects_empty_or_invalid_imported_values(weights):
+    state = make_state(loras=["test.safetensors:1:1"], lora_weight_arrays={"test.safetensors_model": weights})
+    with pytest.raises(ValueError):
+        UltimateConfigBuilder.state_to_configs_json(state)
 
 
 def make_state(loras=None, lora_weight_arrays=None, lora_bypass_states=None,

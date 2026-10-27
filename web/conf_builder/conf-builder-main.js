@@ -40,6 +40,22 @@ app.registerExtension({
     name: "UltimateConfigBuilder.CompleteHTML",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        if (['UltimateConfigBuilder', 'UltimateSamplerGrid'].includes(nodeData.name)) {
+            const onConnectionsChange = nodeType.prototype.onConnectionsChange;
+            nodeType.prototype.onConnectionsChange = function () {
+                const result = onConnectionsChange?.apply(this, arguments);
+                // Read wiring after LiteGraph finishes updating its links, once per graph edit.
+                for (const builder of utilities?.getActiveConfigBuilderNodes() || []) {
+                    if (builder.graph !== this.graph || builder._wiringRefreshPending) continue;
+                    builder._wiringRefreshPending = true;
+                    queueMicrotask(() => {
+                        builder._wiringRefreshPending = false;
+                        if (builder.graph) builder.renderUI();
+                    });
+                }
+                return result;
+            };
+        }
         if (nodeData.name === "UltimateConfigBuilder") {
             
             // Trigger module load immediately when we see our node definition
@@ -84,6 +100,8 @@ app.registerExtension({
                 
                 // Assign the widget reference immediately so onConfigure can find it
                 this.configWidget = configWidget;
+                // Use ComfyUI's normal queue path so validation and other active outputs stay visible.
+                this.queueComparison = () => app.queuePrompt(0, 1);
 
                 // Setup default state immediately
                 this.uiState = {
@@ -102,6 +120,7 @@ app.registerExtension({
                 // Initialize default state structure
                 this.state = {
                     session_name: "my_test_session",
+                    seed_values: "",
                     config_name: "default_config",
                     auto_save: false,
                     include_none: false,

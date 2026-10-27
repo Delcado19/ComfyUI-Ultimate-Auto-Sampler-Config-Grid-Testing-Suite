@@ -10,6 +10,7 @@ docs/
 .venv/
 .test-cache/
 .test-tmp/
+/.taste-skill/
 .pytest_cache/
 _test_output/
 /graphify-out/cache/

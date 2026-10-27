@@ -20,11 +20,11 @@ app.registerExtension({
 
             const helpDiv = document.createElement("div");
             helpDiv.textContent =
-                "Connect the configs_json from the Builder node to this node, " +
-                "and connect this node to the Dashboard node";
+                "Connect Builder configs_json here, then dashboard_html to the Dashboard. " +
+                "Set up and start your test in the Builder's Review & run step.";
             helpDiv.style.cssText = [
-                "font-size: 11px",
-                "color: #888",
+                "font-size: 13px",
+                "color: #b4b4b4",
                 "padding: 8px 12px",
                 "line-height: 1.4",
                 "text-align: center",
@@ -39,7 +39,7 @@ app.registerExtension({
             this.addDOMWidget("help_note", "div", helpDiv, {
                 serialize: false,
                 hideOnZoom: false,
-                getHeight: () => 44,
+                getHeight: () => 76,
             });
 
             return result;

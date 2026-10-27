@@ -9,12 +9,41 @@ import sys
 import json
 import time
 import builtins
+import re
+import math
 import folder_paths
 from typing import List, Dict, Any
 import server
 from aiohttp import web
 import hashlib
 from .civitai import civitai_fetch_by_hash
+
+
+def _parse_seed_values(raw):
+    """Validate the shared CSV at the preview/execution boundary; preserve exact uint64 seeds."""
+    if not isinstance(raw, str):
+        raise ValueError("Seed values must be a comma-separated string.")
+    if not raw.strip():
+        return []  # Older workflows retain their per-comparison seed settings.
+    tokens = raw.split(",")
+    if len(tokens) > 10000:
+        raise ValueError("Use at most 10000 seed values.")
+    result = []
+    seen = set()
+    for token in tokens:
+        token = token.strip()
+        if not token:
+            raise ValueError("Empty seed entry: remove repeated, leading or trailing commas.")
+        if not re.fullmatch(r"[0-9]+", token):
+            raise ValueError("Seeds must be non-negative whole numbers separated by commas.")
+        digits = token.lstrip("0") or "0"
+        if len(digits) > 20 or int(digits) > 2**64 - 1:
+            raise ValueError("Seeds must be between 0 and 18446744073709551615.")
+        seed = int(digits)
+        if seed not in seen:
+            result.append(seed)
+            seen.add(seed)
+    return result
 
 
 def safe_print(*args, **kwargs):
@@ -246,6 +275,7 @@ class UltimateConfigBuilder:
         """Return default complete configuration"""
         config = {
             "session_name": "my_test_session",
+            "seed_values": "",
             "include_none": False,
             "global_positive_groups": [],
             "global_negative": "",
@@ -479,6 +509,19 @@ class UltimateConfigBuilder:
             clip_str = parts[1] if len(parts) > 1 else model_str
             model_arr = weight_arrays.get(name + "_model")
             clip_arr = weight_arrays.get(name + "_clip")
+            # Generated/manual lists share this execution boundary, including configs loaded without the UI.
+            for weights in (model_arr, clip_arr):
+                if weights is None:
+                    continue
+                if not isinstance(weights, list) or len(weights) > 10000:
+                    raise ValueError("LoRA strength values must be a list of at most 10000 numbers.")
+                for weight in weights:
+                    try:
+                        valid = not isinstance(weight, bool) and math.isfinite(float(weight))
+                    except (TypeError, ValueError, OverflowError):
+                        valid = False
+                    if not valid:
+                        raise ValueError("LoRA strength values must be finite numbers, without empty entries.")
             if model_arr and len(model_arr) > 1:
                 model_part = "[" + ", ".join(str(v) for v in model_arr) + "]"
                 if clip_arr and len(clip_arr) > 1:
@@ -545,6 +588,7 @@ class UltimateConfigBuilder:
         # SINGLE SOURCE OF TRUTH for builder UI state -> configs_json.
 
         actual_include_none = state.get("include_none", False)
+        seed_values = _parse_seed_values(state.get("seed_values", ""))
         config_arrays = state.get("config_arrays", [])
 
         # Global prompts (used when per-config prompts are not defined)
@@ -810,6 +854,15 @@ class UltimateConfigBuilder:
 
             configs_output.append(config)
 
+        if seed_values:
+            # An explicit shared list is the seed axis of the test, including seed zero.
+            # Emit through the same transformer for preview and execution; legacy recipes stay unchanged.
+            configs_output = [
+                dict(config, seed=seed, full_run_seed=seed,
+                     seed_behavior="fixed", full_run_seed_behavior="fixed")
+                for config in configs_output for seed in seed_values
+            ]
+
         # Build the output object with configs and optional distribution settings
         output_obj = {"configs": configs_output}
 
@@ -880,6 +933,10 @@ class UltimateConfigBuilder:
             session_settings["add_random_seeds_to_gens"] = int(state.get("add_random_seeds_to_gens", 0))
         except (TypeError, ValueError):
             session_settings["add_random_seeds_to_gens"] = 0
+
+        if seed_values:
+            # Echo canonical CSV so a refreshed frontend can detect a server that still needs restarting.
+            session_settings["seed_values"] = ", ".join(map(str, seed_values))
 
         if session_settings:
             output_obj["_session_settings"] = session_settings

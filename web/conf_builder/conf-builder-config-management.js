@@ -31,6 +31,7 @@ import {
 } from './conf-builder-ui-components.js';
 
 import { renderDistributionSection, renderDistributionSettingsSection } from './conf-builder-distribution.js';
+import { renderGuidedSetup, renderSeedControls } from './conf-builder-guided.js';
 
 // 3-level hierarchy: Model Type > Orientation > Sizes
 const RESOLUTION_PRESETS = {
@@ -5775,6 +5776,8 @@ export function renderUpscalingSection(node, container, modelLists) {
         delete node.state.upscaling.configs;
     }
     // Migration: ensure all steps have required fields
+    // Minimal disabled presets can omit pipelines; do not invent an upscale stage when opening the editor.
+    node.state.upscaling.pipelines ??= [];
     if (node.state.upscaling.pipelines) {
         node.state.upscaling.pipelines.forEach(p => {
             if (p.active === undefined) p.active = true;
@@ -7128,6 +7131,7 @@ function _setPreviewMeta(node, data) {
 export function updatePreview(node) {
     const preview = node.htmlContainer?.querySelector("#json-preview");
     if (!preview) return;
+    node._guidedPreview?.(null);
 
     if (node._previewTimer) clearTimeout(node._previewTimer);
     node._previewSeq = (node._previewSeq || 0) + 1;
@@ -7146,16 +7150,37 @@ export function updatePreview(node) {
                 throw new Error(errText || `HTTP ${resp.status}`);
             }
             const data = await resp.json();
+            if (seq !== node._previewSeq) return; // Parsing a slow response may outlive a newer request.
             preview.textContent = data.configs_json;
             _setPreviewMeta(node, data);
+            node._guidedPreview?.(data);
         } catch (e) {
             if (seq !== node._previewSeq) return;
             _setPreviewStale(node, e.message || String(e));
+            node._guidedPreview?.(null, e.message || String(e));
         }
     }, 800);
 }
 
 export async function renderUI(node, availableLoras, modelLists, loraFolders, availableSessions, availableConfigs, refreshAllConfigBuilders) {
+    // Presentation state stays outside lora_config so old workflows retain their exact recipe.
+    if (node.uiState.builderMode !== 'advanced') {
+        renderGuidedSetup(node, {
+            availableLoras, modelLists, loraFolders,
+            topBarOptions: {
+                availableSessions, availableConfigs, refreshAllConfigBuilders,
+                onLoadSession: value => node.loadSession(value),
+                onLoadConfig: value => node.loadConfigFromBackend(value),
+                onSaveConfig: () => node.saveConfigToBackend(),
+            },
+        }, { renderModelsSection, renderVAEsSection, renderLorasSection, renderGlobalPromptsSection,
+            renderConfigPromptsSection, createConfigArrayElement, renderRunSettingsSection, createTopBar });
+        // Reused expert controls keep their existing styles; guided tokens override the common fields.
+        node.htmlContainer.insertAdjacentHTML('afterbegin', getStyles());
+        updatePreview(node);
+        return;
+    }
+    node._guidedPreview = null;
     // Save scroll from the main content area
     const scrollContainer = node.htmlContainer.querySelector(".cb-main-content");
     const savedScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
@@ -7185,6 +7210,11 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
         }
     });
     root.appendChild(topBar);
+    const guidedButton = document.createElement('button');
+    guidedButton.className = 'cb-button';
+    guidedButton.textContent = 'Guided setup';
+    guidedButton.onclick = () => { node.uiState.builderMode = 'guided'; node.renderUI(); };
+    topBar.prepend(guidedButton);
 
     // === LAYOUT WRAPPER (sidebar + main content) ===
     const layoutWrapper = document.createElement("div");
@@ -7201,6 +7231,9 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
     root.appendChild(layoutWrapper);
 
     // === MAIN CONTENT SECTIONS ===
+
+    // Shared seeds remain visible in expert mode too; per-group seed policies apply only to an empty list.
+    renderSeedControls(node, mainContent);
 
     // Run Settings Section — session-level generator overrides. Rendered at
     // the very top so users see core run-behavior knobs (resume/overwrite,

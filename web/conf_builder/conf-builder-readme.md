@@ -1,4 +1,20 @@
 
+### Guided setup and compatibility
+
+`conf-builder-guided.js` presents the existing `node.state` as five views: Models & LoRAs, Prompts, Sampling, Seeds, and Review & run. `renderUI()` selects this view by default; the full editor remains available through Advanced editor. View and selection state live in `node.uiState`, outside serialized `lora_config`. No recipe migration runs when guided setup opens.
+
+Sampling uses native checkbox lists and ordinary labelled fields. Its scope selector applies edits to all setups or one setup. `applySamplingValue()` copies only the edited sampling field; shared array values are cloned per setup. Existing differing sampling recipes stay in individual scope until the user explicitly chooses otherwise. Seed generators live in their own view and never crowd the sampling form.
+
+The preview still comes from Python's `state_to_configs_json`. `plannedImageCount()` counts the emitted literal combinations without allocating the Cartesian product. It reports unknown for folder/wildcard jobs, video and advanced sampling, and labels connected latent batches separately. It never claims to predict resume skips or upscale-stage totals. Preview request sequence numbers also protect the response-JSON parsing interval; failed or pending preview disables guided start.
+
+`queueComparison()` delegates to `app.queuePrompt(0, 1)`, the normal ComfyUI queue path. It queues the current workflow, not a hidden independent graph. Other enabled output nodes follow normal ComfyUI behavior. Browser tests must intercept this callback unless image generation is explicitly part of the validation.
+
+Run calculation regressions with `node --test tests/test_guided_builder.mjs`.
+
+`conf-builder-numbers.js` supplies one CSV editor/generator for shared seeds and each LoRA's strengths. It rejects empty comma slots and non-finite values, merges numeric duplicates, appends generated/manual values, and caps lists/ranges at 10,000 entries. Seed parsing and generation use BigInt and store decimal strings so JavaScript never rounds uint64 seeds. Strength ranges use integer-scaled decimal arithmetic; scalar LoRA strings preserve increments finer than the legacy helper's two-decimal formatting.
+
+The saved optional `state.seed_values` is canonical CSV. Python validates it again, duplicates each emitted comparison over those seeds, and sets fixed seed policies explicitly (including seed zero). The preview response echoes canonical CSV in `_session_settings.seed_values`; a frontend connected to an old server blocks shared-seed starts and requests a restart. Absent/empty CSV keeps existing recipe behavior. Guided and expert views share the same seed editor. Disabled minimal upscale presets can omit pipelines; opening expert mode leaves their pipelines empty rather than creating an active stage.
+
 ### **File Structure Overview**
 
 The refactoring splits the original monolithic `config_builder.js` into four modular files to separate concerns:

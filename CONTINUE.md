@@ -1,5 +1,24 @@
 # Dashboard and Manifest Reliability Handoff
 
+## Guided Config Builder (2026-10-26)
+
+- Latest user feedback rejected the combined Compare screen. Current layout is five tasks: Models & LoRAs, Prompts, Sampling, Seeds, Review & run. Sampling uses checkbox lists, ordinary numeric/size fields and explicit all/per-setup scope. Seed controls have a separate page.
+- Current automated results: 154 Python tests, 14 JavaScript tests. After the approval-service limit was lifted, final five-view browser checks passed at 1440/768/390 pixels: range/random append, manual values, exact uint64, strength precision, invalid separators, advanced mode and stale-backend detection. Sampling and Seeds screenshots were inspected. No GPU jobs were run.
+- The two-setup/shared-seed workflow is now installed over the requested copy on G:. Its old hash matched before.sha256 before replacement; the installed hash matches the staged ready-to-open file. The original source workflow is unchanged. Do not rerun the preparation script against the now-migrated copy.
+- Final isolated ComfyUI 0.42.1 / frontend 1.55.18 integration passed: embedded node, 72-image preview, wiring run gating, queue callback [0,1], and exact uint64 seed save/load. No generation submitted. The regular user server still needs restarting for the backend changes, followed by browser refresh.
+
+- Follow-up: shared seed CSV now has Start/End/Increment generation, random-count generation, manual editing and S0...Sn labels. Each LoRA's strength list has the same append-only range/manual editor.
+- Numeric CSV rejects empty comma slots, normalizes whitespace/duplicates and validates at preview/execution boundaries. Seed values remain exact uint64 decimal strings in saved frontend state; generated strength increments are not rounded to two decimals.
+- Non-empty `state.seed_values` applies every listed fixed seed to every comparison group; absent/empty preserves legacy per-group seed policies. Preview echoes canonical shared seeds to detect a server that needs restarting.
+- The user's Screen-L workflow copy is prepared as two settings groups plus a shared three-seed list. Exact expanded-job equivalence with its previous six groups is checked before installation; the original source workflow stays untouched.
+
+- Default UI follows the five freely accessible views above. Full advanced editing remains available.
+- Reuses the existing `lora_config` state and Python preview transformer; opening guided setup does not rewrite old recipes. Complex prompts and separate CLIP strengths remain in the expert controls.
+- Connected loader names, per-comparison selection, a persistent planned base-image count, wiring checks, and normal ComfyUI queuing replace the icon-only navigation and always-visible JSON on the default path.
+- Count is conservative for folder/wildcard/video/advanced sampling jobs; latent batch sizes, upscaling and resume skips are explicitly outside the displayed base count.
+- JavaScript regression command: `node --test tests/test_guided_builder.mjs`. CI runs this alongside existing checks.
+- Current validation and design/motion decisions are recorded in `BUILDER_UX.md`.
+
 ## Dashboard and manifest reliability
 
 Implemented after the local architecture review:

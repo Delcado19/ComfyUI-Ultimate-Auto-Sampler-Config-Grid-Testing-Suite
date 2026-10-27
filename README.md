@@ -507,8 +507,24 @@ All configuration data is automatically synchronized with the Ultimate Sampler G
 1. **Add the Node:** Right-click on the canvas → `Add Node` → `sampling/testing` → `Ultimate Config Builder`
 2. **Connect to Sampler:**
    - Connect the `configs_json` output to the `configs_json` input of the `Ultimate Sampler Grid (Generator)` node
-   - Connect the `session_name` output to the `session_name` input of the generator (optional)
-3. **Start Building:** The Config Builder UI will appear in the node with one config array ready to customize.
+   - Optional external loaders connect to the generator's `optional_model`, `optional_clip`, and `optional_vae` inputs.
+3. **Follow Guided Setup:** Open the Builder and move through the five freely accessible steps below. Session settings travel inside `configs_json`; there is no separate session-name socket.
+
+### Guided Setup
+
+1. **Models & LoRAs:** See which loaders are connected, select a checkpoint if needed, and add LoRAs. Each LoRA has Start, End, Increment and **Generate range** controls above its comma-separated strength list. Generate appends to the list; you can also edit or add values manually.
+2. **Prompts:** Write one or more complete prompts. Each prompt is tested against the comparison settings.
+3. **Sampling:** Tick samplers and schedulers, then set denoising steps, guidance (CFG) and output size. **Apply changes to** chooses all setups or one named setup. Identical sampling recipes start in shared scope; differing recipes retain individual editing. Each field you edit affects only that sampling field.
+4. **Seeds:** Set the shared seed list for the whole test. Generate seeds from Start / End / Increment or use **Generate random seeds** with a count. Both buttons append to the editable comma-separated seed list. Labels S0, S1, etc. follow list order. Every settings group uses this same list.
+5. **Review & run:** Name the session, inspect all comparisons and the wiring checks, then select **Run comparison**. This queues the current ComfyUI workflow once, including any other enabled output nodes.
+
+The footer shows the planned number of **base images** across all comparisons, including prompt and LoRA-strength combinations. Connected latent batches, video, folder/wildcard expansion and advanced sampling pipelines may require additional information; the UI reports an unknown count instead of guessing. Upscale stages and completed images skipped during resume are not part of the base-image count. A failed preview disables the start button until preview recovers.
+
+**Numeric-list rules:** Increment is the distance between generated values, not the number of values. The end is included when the increment reaches it. Generators append values and merge numeric duplicates. Repeated, leading or trailing commas create an inline error; separate values with a single comma and use a decimal point for strengths. Seeds accept the full unsigned 64-bit range, including zero. Each list/generation is limited to 10,000 values. An empty shared seed list preserves older per-group seed policies; a non-empty list replaces them with fixed, explicitly selected seeds. Shared seeds are also available in Advanced editor.
+
+After installing the seed-list update, **restart ComfyUI and hard-refresh the browser**. The frontend blocks shared-seed runs if the server still uses the earlier transformer.
+
+Existing workflow recipes use the same saved `lora_config` and Python transformer. **Advanced editor** retains all existing controls, presets and specialized model options; **Guided setup** returns to the simpler view. Nested prompts, separate CLIP strengths and per-comparison prompt overrides are preserved and remain editable through the advanced controls. The detailed interface reference below describes that advanced editor.
 
 ### Understanding the Interface
 
@@ -1524,6 +1540,11 @@ After modifying backend Python files, restart ComfyUI. After modifying `web/` JS
 ## 📝 Changelog
 
 ### Unreleased - Dashboard and Session Reliability
+
+- Add guided Config Builder setup with Models & LoRAs, Prompts, Sampling, Seeds, and Review & run steps, plus a persistent base-image count and wiring checks.
+- Add shared seed and per-LoRA strength lists with append-only range generation, random seed generation, manual CSV editing and validation. Preserve exact uint64 seeds and fine-grained strength increments.
+- Preserve existing recipe serialization and the complete advanced editor. Keep stale preview responses from replacing newer edits, and disable guided start while preview is unavailable.
+- Add JavaScript regression tests for image-count arithmetic and generator detection to the Windows/Linux test workflow.
 
 - Escape embedded manifest JSON, node IDs, and session titles while preserving incremental dashboard updates.
 - Preserve removed favorites, cleared rejections, and empty notes when generation saves a stale manifest.
