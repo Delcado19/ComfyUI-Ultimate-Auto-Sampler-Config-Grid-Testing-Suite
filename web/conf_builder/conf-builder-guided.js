@@ -357,8 +357,8 @@ export function renderGuidedSetup(node, resources, hooks) {
         negative.value = node.state.global_negative || '';
         negative.onchange = () => change(() => { node.state.global_negative = negative.value; });
         field(content, 'Negative prompt (optional)', negative, 'Leave empty if your model does not use a negative prompt.');
-        if (config.use_custom_prompts) content.append(element('p', 'cb-guide-notice', 'This comparison has its own prompt override. Edit it below or turn it off to use the prompts above.'));
-        disclosure(content, 'Nested prompts and comparison overrides', panel => {
+        if (config.use_custom_prompts) content.append(element('p', 'cb-guide-notice', 'This setup has its own prompt settings enabled. Its positive prompts replace the shared prompts above when provided. For a direct LoRA comparison, use the same shared prompts in every setup.'));
+        disclosure(content, 'Prompt groups and separate prompts for this setup', panel => {
             hooks.renderGlobalPromptsSection(node, panel);
             hooks.renderConfigPromptsSection(node, panel, config, index);
         });

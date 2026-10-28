@@ -5360,7 +5360,7 @@ export function renderGlobalPromptsSection(node, container) {
     section.id = "cb-sec-prompts";
 
     // Header (collapsible) — uniform section header
-    const header = createSectionHeader("📝", "Global Prompts (Override Node Inputs)", "prompts", {
+    const header = createSectionHeader("📝", "Shared Prompts", "prompts", {
         collapsible: true,
         collapsed: isCollapsed,
         onToggle: () => {
@@ -5384,7 +5384,7 @@ export function renderGlobalPromptsSection(node, container) {
     // Info text
     const info = document.createElement("div");
     info.style.cssText = "font-size: 11px; color: #999; font-style: italic;";
-    info.textContent = "These prompts override the sampler node's positive/negative text inputs for ALL config arrays. Per-config prompts (below) can further override these.";
+    info.textContent = "All setups use these prompts when provided, instead of the generator's text inputs. A setup can use its own prompts below. For a direct LoRA comparison, keep the same shared prompts in every setup.";
     contentDiv.appendChild(info);
 
     // Positive Prompt Editor
@@ -5484,8 +5484,14 @@ export function renderConfigPromptsSection(node, div, configArray, arrayIdx) {
         debouncedRenderUI(node);
     };
     toggleLabel.appendChild(toggleCheck);
-    toggleLabel.appendChild(document.createTextNode("Use Custom Prompts (Override Global/Node)"));
+    toggleLabel.appendChild(document.createTextNode("Use separate prompts for this setup"));
     contentDiv.appendChild(toggleLabel);
+
+    const promptHelp = document.createElement("p");
+    promptHelp.className = "cb-guide-muted";
+    // Match the transformer: only a non-empty positive prompt list selects this setup's prompt source.
+    promptHelp.textContent = "Off: use the shared prompts. On: use this setup's positive prompts when provided; otherwise keep the shared prompts. Use the same shared prompts in every setup for a direct LoRA comparison.";
+    contentDiv.appendChild(promptHelp);
 
     // Helper to update the prompt count in the section header
     const updatePromptCountDisplay = () => {

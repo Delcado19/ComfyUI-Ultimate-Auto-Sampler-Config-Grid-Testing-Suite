@@ -2,6 +2,8 @@
 
 ## Guided Config Builder (2026-10-26)
 
+- Prompt wording follow-up: replaced prompt override labels with Shared Prompts / Use separate prompts for this setup. Guided notice and expert help explain shared-list fallback and recommend identical shared prompts for direct LoRA comparisons. Saved prompt flags and transformer behavior are unchanged.
+
 - Latest user feedback rejected the combined Compare screen. Current layout is five tasks: Models & LoRAs, Prompts, Sampling, Seeds, Review & run. Sampling uses checkbox lists, ordinary numeric/size fields and explicit all/per-setup scope. Seed controls have a separate page.
 - Current automated results: 154 Python tests, 14 JavaScript tests. After the approval-service limit was lifted, final five-view browser checks passed at 1440/768/390 pixels: range/random append, manual values, exact uint64, strength precision, invalid separators, advanced mode and stale-backend detection. Sampling and Seeds screenshots were inspected. No GPU jobs were run.
 - The two-setup/shared-seed workflow is now installed over the requested copy on G:. Its old hash matched before.sha256 before replacement; the installed hash matches the staged ready-to-open file. The original source workflow is unchanged. Do not rerun the preparation script against the now-migrated copy.

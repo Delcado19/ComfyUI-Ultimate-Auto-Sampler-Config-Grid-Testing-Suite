@@ -11,6 +11,8 @@ The preview still comes from Python's `state_to_configs_json`. `plannedImageCoun
 
 Run calculation regressions with `node --test tests/test_guided_builder.mjs`.
 
+Prompt controls use “Shared Prompts” and “Use separate prompts for this setup” rather than override terminology. The help explains the existing non-empty positive-list fallback and recommends shared prompts for direct LoRA comparisons. This wording does not change saved prompt settings.
+
 `conf-builder-numbers.js` supplies one CSV editor/generator for shared seeds and each LoRA's strengths. It rejects empty comma slots and non-finite values, merges numeric duplicates, appends generated/manual values, and caps lists/ranges at 10,000 entries. Seed parsing and generation use BigInt and store decimal strings so JavaScript never rounds uint64 seeds. Strength ranges use integer-scaled decimal arithmetic; scalar LoRA strings preserve increments finer than the legacy helper's two-decimal formatting.
 
 The saved optional `state.seed_values` is canonical CSV. Python validates it again, duplicates each emitted comparison over those seeds, and sets fixed seed policies explicitly (including seed zero). The preview response echoes canonical CSV in `_session_settings.seed_values`; a frontend connected to an old server blocks shared-seed starts and requests a restart. Absent/empty CSV keeps existing recipe behavior. Guided and expert views share the same seed editor. Disabled minimal upscale presets can omit pipelines; opening expert mode leaves their pipelines empty rather than creating an active stage.

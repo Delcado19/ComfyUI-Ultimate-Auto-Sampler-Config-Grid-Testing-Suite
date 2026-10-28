@@ -524,7 +524,7 @@ The footer shows the planned number of **base images** across all comparisons, i
 
 After installing the seed-list update, **restart ComfyUI and hard-refresh the browser**. The frontend blocks shared-seed runs if the server still uses the earlier transformer.
 
-Existing workflow recipes use the same saved `lora_config` and Python transformer. **Advanced editor** retains all existing controls, presets and specialized model options; **Guided setup** returns to the simpler view. Nested prompts, separate CLIP strengths and per-comparison prompt overrides are preserved and remain editable through the advanced controls. The detailed interface reference below describes that advanced editor.
+Existing workflow recipes use the same saved `lora_config` and Python transformer. **Advanced editor** retains all existing controls, presets and specialized model options; **Guided setup** returns to the simpler view. Nested prompts, separate CLIP strengths and separate prompts for individual setups remain editable through the advanced controls. **Use separate prompts for this setup** selects that setup's positive prompts when provided; an empty list falls back to shared prompts. Keep this option off in every setup for a direct LoRA comparison using identical prompts. The detailed interface reference below describes that advanced editor.
 
 ### Understanding the Interface
 
